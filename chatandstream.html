@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lobby Chat & Stream</title>
+    <style>
+        body {
+            background-color: #2f3136;
+            color: #dcddde;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+        .rain {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .drop {
+            position: absolute;
+            width: 2px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.3);
+            animation: fall linear infinite;
+        }
+        .loader {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            border: 5px solid #7289da;
+            border-top: 5px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            z-index: 1000;
+        }
+        #menu {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            position: relative;
+            z-index: 1;
+            animation: fadeIn 1s ease-in;
+        }
+        button {
+            background-color: #7289da;
+            border: none;
+            padding: 12px 24px;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 8px;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        button:hover {
+            background-color: #677bc4;
+            transform: scale(1.05);
+        }
+        input, select {
+            background-color: #40444b;
+            border: none;
+            padding: 10px;
+            color: #dcddde;
+            margin: 8px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 5px #7289da;
+        }
+        #chat, #lobbySettings, #createLobby, #joinLobby {
+            background-color: #36393f;
+            padding: 15px;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 5px;
+            margin: 20px auto;
+            animation: slideIn 0.5s ease-out;
+            position: relative;
+            z-index: 1;
+        }
+        #chatMessages {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .notification {
+            background-color: #f1c40f;
+            color: #2f3136;
+            padding: 5px;
+            margin: 2px 0;
+            border-radius: 3px;
+        }
+        #videoContainer {
+            margin: 20px auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            width: 80%;
+        }
+        video {
+            width: 100%;
+            max-width: 400px;
+            background-color: black;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            transition: transform 0.3s;
+        }
+        video:hover {
+            transform: scale(1.02);
+        }
+        #lobbyInfo {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #40444b;
+            border-radius: 5px;
+            display: none;
+        }
+        @keyframes fall {
+            0% { transform: translateY(-100vh); }
+            100% { transform: translateY(100vh); }
+        }
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="rain" id="rain"></div>
+    <div class="loader" id="loader"></div>
+
+    <div id="menu">
+        <input type="text" id="nickname" placeholder="Ваш ник" maxlength="20">
+        <button onclick="showCreateLobby()">Создать лобби</button>
+        <button onclick="showJoinLobby()">Войти в лобби</button>
+    </div>
+
+    <div id="createLobby" style="display: none;">
+        <button onclick="createLobby()">Открыть лобби</button>
+    </div>
+
+    <div id="joinLobby" style="display: none;">
+        <input type="text" id="lobbyId" placeholder="ID лобби">
+        <button onclick="joinLobby()">Подключиться</button>
+    </div>
+
+    <div id="lobbySettings" style="display: none;">
+        <h3>Настройки лобби</h3>
+        <label><input type="checkbox" id="allowStreams" checked> Разрешить трансляции без разрешения</label><br>
+        <label>К/Д сообщений (сек): <input type="number" id="chatCooldown" min="0" value="0"></label>
+        <div id="lobbyInfo"></div>
+    </div>
+
+    <div id="chat" style="display: none;">
+        <div id="chatMessages"></div>
+        <input type="text" id="messageInput" placeholder="Сообщение" onkeypress="if(event.key === 'Enter') sendMessage()">
+        <button onclick="startStream()">Начать трансляцию</button>
+    </div>
+
+    <div id="videoContainer"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
+    <script>
+        let peer, conn, isOwner = false, streams = {}, nickname = '';
+        const videoContainer = document.getElementById('videoContainer');
+        const chatMessages = document.getElementById('chatMessages');
+        const loader = document.getElementById('loader');
+        const lobbyInfo = document.getElementById('lobbyInfo');
+
+        function createRain() {
+            const rain = document.getElementById('rain');
+            for (let i = 0; i < 100; i++) {
+                const drop = document.createElement('div');
+                drop.className = 'drop';
+                drop.style.left = Math.random() * 100 + 'vw';
+                drop.style.animationDuration = (Math.random() * 2 + 1) + 's';
+                drop.style.opacity = Math.random() * 0.5 + 0.2;
+                rain.appendChild(drop);
+            }
+        }
+        createRain();
+
+        function showLoader() { loader.style.display = 'block'; }
+        function hideLoader() { loader.style.display = 'none'; }
+
+        function showCreateLobby() {
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('createLobby').style.display = 'block';
+        }
+
+        function showJoinLobby() {
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('joinLobby').style.display = 'block';
+        }
+
+        async function createLobby() {
+            showLoader();
+            nickname = document.getElementById('nickname').value || 'Аноним';
+            peer = new Peer({ host: '0.peerjs.com', port: 443, secure: true });
+            peer.on('open', (id) => {
+                isOwner = true;
+                const port = 5000;
+                document.getElementById('createLobby').style.display = 'none';
+                document.getElementById('chat').style.display = 'block';
+                document.getElementById('lobbySettings').style.display = 'block';
+                lobbyInfo.style.display = 'block';
+                lobbyInfo.innerHTML = `ID: ${id}<br>Порт: ${port}<br>Поделитесь ID с другими!`;
+                hideLoader();
+            });
+            peer.on('error', (err) => {
+                console.error('PeerJS error:', err);
+                addMessage('Ошибка создания лобби: ' + err.message);
+                hideLoader();
+            });
+            setupPeerEvents();
+        }
+
+        async function joinLobby() {
+            showLoader();
+            nickname = document.getElementById('nickname').value || 'Аноним';
+            const lobbyId = document.getElementById('lobbyId').value;
+            if (!lobbyId) {
+                alert('Введите ID лобби!');
+                hideLoader();
+                return;
+            }
+            peer = new Peer({ host: '0.peerjs.com', port: 443, secure: true });
+            peer.on('open', () => {
+                conn = peer.connect(lobbyId);
+                conn.on('open', () => {
+                    isOwner = false;
+                    document.getElementById('joinLobby').style.display = 'none';
+                    document.getElementById('chat').style.display = 'block';
+                    addMessage('Подключено к лобби!');
+                    conn.send({ type: 'join', nickname });
+                    hideLoader();
+                });
+                conn.on('data', handleData);
+                conn.on('error', (err) => {
+                    addMessage('Ошибка соединения: ' + err.message);
+                    hideLoader();
+                });
+            });
+            peer.on('error', (err) => {
+                console.error('PeerJS error:', err);
+                addMessage('Ошибка подключения: ' + err.message);
+                hideLoader();
+            });
+            setupPeerEvents();
+        }
+
+        function setupPeerEvents() {
+            peer.on('connection', (connection) => {
+                conn = connection;
+                conn.on('data', handleData);
+                conn.on('open', () => {
+                    if (isOwner) {
+                        addNotification(`Пользователь ${connection.metadata?.nickname || 'Аноним'} зашел в лобби.`);
+                    }
+                });
+            });
+            peer.on('call', (call) => {
+                call.answer();
+                call.on('stream', (remoteStream) => {
+                    addStream(call.peer, remoteStream);
+                });
+                call.on('error', (err) => {
+                    console.error('Call error:', err);
+                    addMessage('Ошибка стрима: ' + err.message);
+                });
+            });
+        }
+
+        function handleData(data) {
+            if (data.type === 'chat') {
+                addMessage(`${data.nickname}: ${data.message}`);
+            } else if (data.type === 'join' && isOwner) {
+                addNotification(`Пользователь ${data.nickname} зашел в лобби.`);
+                conn.send({ type: 'chat', nickname: 'Система', message: `${data.nickname} подключился.` });
+            }
+        }
+
+        function addMessage(message) {
+            const msg = document.createElement('div');
+            msg.textContent = message;
+            msg.style.opacity = '0';
+            chatMessages.appendChild(msg);
+            setTimeout(() => {
+                msg.style.transition = 'opacity 0.3s';
+                msg.style.opacity = '1';
+            }, 10);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function addNotification(message) {
+            const msg = document.createElement('div');
+            msg.textContent = message;
+            msg.className = 'notification';
+            msg.style.opacity = '0';
+            chatMessages.appendChild(msg);
+            setTimeout(() => {
+                msg.style.transition = 'opacity 0.3s';
+                msg.style.opacity = '1';
+            }, 10);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value;
+            if (!message || (!isOwner && checkCooldown())) return;
+            input.value = '';
+            const data = { type: 'chat', nickname, message };
+            addMessage(`${nickname}: ${message}`);
+            if (conn && conn.open) conn.send(data);
+        }
+
+        function checkCooldown() {
+            const cd = parseInt(document.getElementById('chatCooldown')?.value || 0);
+            if (!cd) return false;
+            const now = Date.now();
+            if (!window.lastMessageTime) window.lastMessageTime = 0;
+            if (now - window.lastMessageTime < cd * 1000) return true;
+            window.lastMessageTime = now;
+            return false;
+        }
+
+        async function startStream() {
+            const allowStreams = document.getElementById('allowStreams')?.checked;
+            if (!isOwner && !allowStreams) {
+                alert('Трансляции разрешены только с разрешения создателя!');
+                return;
+            }
+            try {
+                showLoader();
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                    throw new Error('Медиа-устройства не поддерживаются. Используйте HTTPS и современный браузер.');
+                }
+                console.log('Requesting screen share...');
+                const stream = await navigator.mediaDevices.getDisplayMedia({ 
+                    video: { frameRate: 60 },
+                    audio: false
+                });
+                console.log('Stream obtained:', stream);
+                addStream(peer.id, stream);
+                if (isOwner && peer.connections) {
+                    console.log('Current connections:', peer.connections);
+                    Object.values(peer.connections).forEach(conns => {
+                        conns.forEach(connection => {
+                            if (connection.open) {
+                                console.log('Calling peer:', connection.peer);
+                                const call = peer.call(connection.peer, stream);
+                                call.on('error', (err) => {
+                                    console.error('Call error for', connection.peer, ':', err);
+                                    addMessage('Ошибка вызова: ' + err.message);
+                                });
+                            } else {
+                                console.log('Connection not open for:', connection.peer);
+                            }
+                        });
+                    });
+                }
+                hideLoader();
+            } catch (err) {
+                console.error('Stream error:', err);
+                addMessage('Ошибка трансляции: ' + err.message);
+                hideLoader();
+                if (err.name === 'NotAllowedError') {
+                    alert('Разрешите доступ к экрану для трансляции!');
+                } else if (err.name === 'NotFoundError') {
+                    alert('Не удалось найти устройство для трансляции!');
+                } else {
+                    alert('Ошибка: ' + err.message);
+                }
+            }
+        }
+
+        function addStream(peerId, stream) {
+            if (streams[peerId]) return;
+            console.log('Adding stream for peer:', peerId);
+            const video = document.createElement('video');
+            video.srcObject = stream;
+            video.autoplay = true;
+            video.style.opacity = '0';
+            streams[peerId] = video;
+            videoContainer.appendChild(video);
+            setTimeout(() => {
+                video.style.transition = 'opacity 0.5s';
+                video.style.opacity = '1';
+            }, 10);
+        }
+    </script>
+</body>
+</html>

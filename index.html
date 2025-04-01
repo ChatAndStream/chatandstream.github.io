@@ -3,335 +3,126 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lobby Chat & Stream</title>
+    <title>Chat And Stream - Общение и трансляции</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
-            background-color: #2f3136;
-            color: #dcddde;
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-            overflow-x: hidden;
+            overflow: hidden;
             position: relative;
+            height: 100vh;
+            background: linear-gradient(to bottom, #1a202c, #2d3748);
         }
-
-        /* Rain effect */
         .rain {
-            position: fixed;
-            top: 0;
-            left: 0;
+            position: absolute;
             width: 100%;
             height: 100%;
-            pointer-events: none;
+            top: 0;
+            left: 0;
             z-index: 0;
         }
         .drop {
             position: absolute;
             width: 2px;
-            height: 60px;
-            background: rgba(255, 255, 255, 0.3);
-            animation: fall linear infinite;
+            height: 15px;
+            background: linear-gradient(to bottom, transparent, #4299e1);
+            border-radius: 0 0 5px 5px;
+            animation: falling linear infinite;
         }
-
-        /* Loading animation */
-        .loader {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 50px;
-            height: 50px;
-            border: 5px solid #7289da;
-            border-top: 5px solid transparent;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            z-index: 1000;
+        @keyframes falling {
+            to {
+                transform: translateY(100vh);
+            }
         }
-
-        /* Menu styling */
-        #menu {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
+        .content {
             position: relative;
             z-index: 1;
-            animation: fadeIn 1s ease-in;
-        }
-
-        button {
-            background-color: #7289da;
-            border: none;
-            padding: 12px 24px;
-            color: white;
-            cursor: pointer;
-            border-radius: 5px;
-            margin: 8px;
-            transition: transform 0.2s, background-color 0.2s;
-        }
-        button:hover {
-            background-color: #677bc4;
-            transform: scale(1.05);
-        }
-
-        input, select {
-            background-color: #40444b;
-            border: none;
-            padding: 10px;
-            color: #dcddde;
-            margin: 8px;
-            border-radius: 5px;
-            transition: all 0.3s;
-        }
-        input:focus {
-            outline: none;
-            box-shadow: 0 0 5px #7289da;
-        }
-
-        #chat, #lobbySettings, #createLobby, #joinLobby {
-            background-color: #36393f;
-            padding: 15px;
-            width: 80%;
-            max-width: 600px;
-            border-radius: 5px;
-            margin: 20px auto;
-            animation: slideIn 0.5s ease-out;
-            position: relative;
-            z-index: 1;
-        }
-
-        #chatMessages {
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        #videoContainer {
-            margin: 20px auto;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            justify-content: center;
-            width: 80%;
-        }
-
-        video {
-            width: 100%;
-            max-width: 400px;
-            background-color: black;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
-            transition: transform 0.3s;
-        }
-        video:hover {
-            transform: scale(1.02);
-        }
-
-        @keyframes fall {
-            0% { transform: translateY(-100vh); }
-            100% { transform: translateY(100vh); }
-        }
-        @keyframes spin {
-            0% { transform: translate(-50%, -50%) rotate(0deg); }
-            100% { transform: translate(-50%, -50%) rotate(360deg); }
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        @keyframes slideIn {
-            from { transform: translateY(20px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
         }
     </style>
 </head>
 <body>
     <div class="rain" id="rain"></div>
-    <div class="loader" id="loader"></div>
-
-    <div id="menu">
-        <input type="text" id="nickname" placeholder="Ваш ник" maxlength="20">
-        <button onclick="showCreateLobby()">Создать лобби</button>
-        <button onclick="showJoinLobby()">Войти в лобби</button>
+    
+    <div class="content min-h-screen flex flex-col items-center justify-center text-white px-4">
+        <div class="max-w-4xl w-full bg-gray-800 bg-opacity-70 rounded-xl shadow-2xl p-8 backdrop-filter backdrop-blur-sm">
+            <div class="flex flex-col md:flex-row items-center">
+                <div class="md:w-1/2 mb-8 md:mb-0 flex justify-center">
+                    <div class="w-64 h-64 rounded-full bg-blue-500 flex items-center justify-center shadow-xl border-4 border-blue-400 transform hover:scale-105 transition-transform">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-32 w-32" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                </div>
+                
+                <div class="md:w-1/2 md:pl-8">
+                    <h1 class="text-4xl md:text-5xl font-bold mb-4 text-blue-300">Chat And Stream</h1>
+                    <p class="text-xl mb-6">Платформа для общения и трансляций с друзьями</p>
+                    
+                    <div class="bg-gray-700 bg-opacity-50 p-4 rounded-lg mb-6">
+                        <div class="flex items-center mb-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>Текстовый чат (доступен)</span>
+                        </div>
+                        <div class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>Голосовой чат (временно недоступен)</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <a href="voiceweb.html" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full transition-all transform hover:scale-105 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                            </svg>
+                            Попробовать веб-версию
+                        </a>
+                        <a href="https://example.com/download" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full transition-all transform hover:scale-105 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Скачать приложение
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer class="mt-8 text-center text-gray-400">
+            <p>© 2025 Chat And Stream. Все права защищены.</p>
+        </footer>
     </div>
 
-    <div id="createLobby" style="display: none;">
-        <button onclick="createLobby()">Открыть лобби</button>
-    </div>
-
-    <div id="joinLobby" style="display: none;">
-        <input type="text" id="lobbyAddress" placeholder="IP:Port (например, 192.168.1.1:5000)">
-        <button onclick="joinLobby()">Подключиться</button>
-    </div>
-
-    <div id="lobbySettings" style="display: none;">
-        <h3>Настройки лобби</h3>
-        <label><input type="checkbox" id="allowStreams" checked> Разрешить трансляции без разрешения</label><br>
-        <label>К/Д сообщений (сек): <input type="number" id="chatCooldown" min="0" value="0"></label>
-    </div>
-
-    <div id="chat" style="display: none;">
-        <div id="chatMessages"></div>
-        <input type="text" id="messageInput" placeholder="Сообщение" onkeypress="if(event.key === 'Enter') sendMessage()">
-        <button onclick="startStream()">Начать трансляцию</button>
-    </div>
-
-    <div id="videoContainer"></div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
     <script>
-        let peer, conn, isOwner = false, streams = {}, nickname = '';
-        const videoContainer = document.getElementById('videoContainer');
-        const chatMessages = document.getElementById('chatMessages');
-        const loader = document.getElementById('loader');
-
-        // Rain effect
         function createRain() {
-            const rain = document.getElementById('rain');
-            for (let i = 0; i < 100; i++) {
+            const rainContainer = document.getElementById('rain');
+            const dropsCount = 100;
+            
+            for (let i = 0; i < dropsCount; i++) {
                 const drop = document.createElement('div');
-                drop.className = 'drop';
-                drop.style.left = Math.random() * 100 + 'vw';
-                drop.style.animationDuration = (Math.random() * 2 + 1) + 's';
-                drop.style.opacity = Math.random() * 0.5 + 0.2;
-                rain.appendChild(drop);
+                drop.classList.add('drop');
+                
+                const left = Math.random() * 100;
+                const top = Math.random() * -100;
+                const duration = Math.random() * 1 + 0.5;
+                const delay = Math.random() * 2;
+                const opacity = Math.random() * 0.6 + 0.2;
+                const height = Math.random() * 20 + 10;
+                
+                drop.style.left = `${left}%`;
+                drop.style.top = `${top}%`;
+                drop.style.animationDuration = `${duration}s`;
+                drop.style.animationDelay = `${delay}s`;
+                drop.style.opacity = opacity;
+                drop.style.height = `${height}px`;
+                
+                rainContainer.appendChild(drop);
             }
         }
-        createRain();
-
-        function showLoader() {
-            loader.style.display = 'block';
-        }
-        function hideLoader() {
-            loader.style.display = 'none';
-        }
-
-        function showCreateLobby() {
-            document.getElementById('menu').style.display = 'none';
-            document.getElementById('createLobby').style.display = 'block';
-        }
-
-        function showJoinLobby() {
-            document.getElementById('menu').style.display = 'none';
-            document.getElementById('joinLobby').style.display = 'block';
-        }
-
-        async function createLobby() {
-            showLoader();
-            nickname = document.getElementById('nickname').value || 'Аноним';
-            peer = new Peer({ host: '0.peerjs.com', port: 443, secure: true });
-            peer.on('open', (id) => {
-                const port = 5000;
-                const lobbyMessage = `Лобби открыто. Ваш порт: ${port}`;
-                addMessage(lobbyMessage);
-                document.getElementById('createLobby').style.display = 'none';
-                document.getElementById('chat').style.display = 'block';
-                document.getElementById('lobbySettings').style.display = 'block';
-                isOwner = true;
-                hideLoader();
-                alert(`Ваш ID для Hamachi: ${id}. Передайте его и порт (${port}) другим!`);
-            });
-            setupPeerEvents();
-        }
-
-        async function joinLobby() {
-            showLoader();
-            nickname = document.getElementById('nickname').value || 'Аноним';
-            const [ip, port] = document.getElementById('lobbyAddress').value.split(':');
-            peer = new Peer({ host: '0.peerjs.com', port: 443, secure: true });
-            peer.on('open', () => {
-                conn = peer.connect(ip);
-                conn.on('open', () => {
-                    document.getElementById('joinLobby').style.display = 'none';
-                    document.getElementById('chat').style.display = 'block';
-                    addMessage('Подключено к лобби!');
-                    hideLoader();
-                });
-                conn.on('data', handleData);
-            });
-            setupPeerEvents();
-        }
-
-        function setupPeerEvents() {
-            peer.on('connection', (connection) => {
-                conn = connection;
-                conn.on('data', handleData);
-            });
-            peer.on('call', (call) => {
-                call.answer();
-                call.on('stream', (remoteStream) => {
-                    addStream(call.peer, remoteStream);
-                });
-            });
-        }
-
-        function handleData(data) {
-            if (data.type === 'chat') {
-                addMessage(`${data.nickname}: ${data.message}`);
-            }
-        }
-
-        function addMessage(message) {
-            const msg = document.createElement('div');
-            msg.textContent = message;
-            msg.style.opacity = '0';
-            chatMessages.appendChild(msg);
-            setTimeout(() => {
-                msg.style.transition = 'opacity 0.3s';
-                msg.style.opacity = '1';
-            }, 10);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-
-        function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const message = input.value;
-            if (!message || (isOwner ? false : checkCooldown())) return;
-            input.value = '';
-            const data = { type: 'chat', nickname, message };
-            addMessage(`${nickname}: ${message}`);
-            if (conn) conn.send(data);
-        }
-
-        function checkCooldown() {
-            const cd = parseInt(document.getElementById('chatCooldown')?.value || 0);
-            if (!cd) return false;
-            const now = Date.now();
-            if (!window.lastMessageTime) window.lastMessageTime = 0;
-            if (now - window.lastMessageTime < cd * 1000) return true;
-            window.lastMessageTime = now;
-            return false;
-        }
-
-        async function startStream() {
-            if (!isOwner && !document.getElementById('allowStreams')?.checked) {
-                alert('Трансляции разрешены только с разрешения создателя!');
-                return;
-            }
-            showLoader();
-            const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 60 } });
-            addStream(peer.id, stream);
-            peer.connections.forEach(([connection]) => {
-                const call = peer.call(connection.peer, stream);
-            });
-            hideLoader();
-        }
-
-        function addStream(peerId, stream) {
-            if (streams[peerId]) return;
-            const video = document.createElement('video');
-            video.srcObject = stream;
-            video.autoplay = true;
-            video.style.opacity = '0';
-            streams[peerId] = video;
-            videoContainer.appendChild(video);
-            setTimeout(() => {
-                video.style.transition = 'opacity 0.5s';
-                video.style.opacity = '1';
-            }, 10);
-        }
+        
+        window.onload = createRain;
     </script>
 </body>
 </html>

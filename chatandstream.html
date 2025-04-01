@@ -356,8 +356,11 @@
             }
             try {
                 showLoader();
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-                    throw new Error('Медиа-устройства не поддерживаются. Используйте HTTPS и современный браузер.');
+                if (!navigator.mediaDevices) {
+                    throw new Error('navigator.mediaDevices недоступен. Используйте HTTPS и современный браузер.');
+                }
+                if (!navigator.mediaDevices.getDisplayMedia) {
+                    throw new Error('getDisplayMedia недоступен. Обновите браузер или используйте HTTPS.');
                 }
                 console.log('Requesting screen share...');
                 const stream = await navigator.mediaDevices.getDisplayMedia({ 

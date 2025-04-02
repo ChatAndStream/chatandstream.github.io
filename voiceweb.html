@@ -219,8 +219,10 @@
         async function createLobby() {
             showLoader();
             nickname = document.getElementById('nickname').value || 'Аноним';
-            peer = new Peer({ host: '0.peerjs.com', port: 443, secure: true });
+            console.log('Creating PeerJS instance...');
+            peer = new Peer({ host: '0.peerjs.com', port: 443, secure: true, debug: 3 });
             peer.on('open', (id) => {
+                console.log('Lobby created with ID:', id);
                 isOwner = true;
                 const port = 5000;
                 document.getElementById('createLobby').style.display = 'none';
@@ -231,7 +233,7 @@
                 hideLoader();
             });
             peer.on('error', (err) => {
-                console.error('PeerJS error:', err);
+                console.error('PeerJS error in createLobby:', err.type, err);
                 addMessage('Ошибка создания лобби: ' + err.message);
                 hideLoader();
             });
@@ -247,10 +249,13 @@
                 hideLoader();
                 return;
             }
-            peer = new Peer({ host: '0.peerjs.com', port: 443, secure: true });
-            peer.on('open', () => {
+            console.log('Joining lobby with ID:', lobbyId);
+            peer = new Peer({ host: '0.peerjs.com', port: 443, secure: true, debug: 3 });
+            peer.on('open', (myId) => {
+                console.log('My Peer ID:', myId);
                 conn = peer.connect(lobbyId);
                 conn.on('open', () => {
+                    console.log('Connection opened to:', lobbyId);
                     isOwner = false;
                     document.getElementById('joinLobby').style.display = 'none';
                     document.getElementById('chat').style.display = 'block';
@@ -260,31 +265,40 @@
                 });
                 conn.on('data', handleData);
                 conn.on('error', (err) => {
+                    console.error('Connection error:', err);
                     addMessage('Ошибка соединения: ' + err.message);
                     hideLoader();
                 });
             });
             peer.on('error', (err) => {
-                console.error('PeerJS error:', err);
+                console.error('PeerJS error in joinLobby:', err.type, err);
                 addMessage('Ошибка подключения: ' + err.message);
-                hideLoader();
+                hideLobby();
             });
             setupPeerEvents();
         }
 
         function setupPeerEvents() {
             peer.on('connection', (connection) => {
+                console.log('New connection from:', connection.peer);
                 conn = connection;
-                conn.on('data', handleData);
                 conn.on('open', () => {
+                    console.log('Connection established with:', connection.peer);
                     if (isOwner) {
                         addNotification(`Пользователь ${connection.metadata?.nickname || 'Аноним'} зашел в лобби.`);
                     }
                 });
+                conn.on('data', handleData);
+                conn.on('error', (err) => {
+                    console.error('Connection error:', err);
+                    addMessage('Ошибка соединения: ' + err.message);
+                });
             });
             peer.on('call', (call) => {
+                console.log('Receiving call from:', call.peer);
                 call.answer();
                 call.on('stream', (remoteStream) => {
+                    console.log('Stream received from:', call.peer);
                     addStream(call.peer, remoteStream);
                 });
                 call.on('error', (err) => {
@@ -357,10 +371,10 @@
             try {
                 showLoader();
                 if (!navigator.mediaDevices) {
-                    throw new Error('navigator.mediaDevices недоступен. Используйте HTTPS и современный браузер.');
+                    throw new Error('navigator.mediaDevices недоступен.');
                 }
                 if (!navigator.mediaDevices.getDisplayMedia) {
-                    throw new Error('getDisplayMedia недоступен. Обновите браузер или используйте HTTPS.');
+                    throw new Error('getDisplayMedia недоступен.');
                 }
                 console.log('Requesting screen share...');
                 const stream = await navigator.mediaDevices.getDisplayMedia({ 
